@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3 class="h4 mb-0">{{ title }}</h3>
+                <a href="{% url 'reports:dashboard' %}" class="btn btn-outline-secondary btn-sm">Cancelar</a>
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+
+                {% for field in form %}
+                <div class="mb-3">
+                    <label for="{{ field.id_for_label }}" class="form-label fw-bold">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}
+                    <div class="form-text">{{ field.help_text }}</div>
+                    {% endif %}
+                    {% if field.errors %}
+                    <div class="text-danger small mt-1">
+                        {{ field.errors.0 }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+
+                <div class="d-grid gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary">Guardar Publicador</button>
+                    <a href="{% url 'reports:dashboard' %}" class="btn btn-outline-secondary">Cancelar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Elements
+        const genderSelect = document.getElementById('{{ form.gender.id_for_label }}');
+        const checkElder = document.getElementById('{{ form.is_elder.id_for_label }}');
+        const checkMS = document.getElementById('{{ form.is_ministerial_servant.id_for_label }}');
+        const checkRP = document.getElementById('{{ form.is_regular_pioneer.id_for_label }}');
+        const checkSP = document.getElementById('{{ form.is_special_pioneer.id_for_label }}');
+        const checkMiss = document.getElementById('{{ form.is_missionary.id_for_label }}');
+
+        // Logic: Elder vs MS
+        function toggleAppt(clicked) {
+            if (clicked === checkElder && checkElder.checked) checkMS.checked = false;
+            if (clicked === checkMS && checkMS.checked) checkElder.checked = false;
+        }
+
+        // Logic: Pioneer Types
+        function togglePioneer(clicked) {
+            if (clicked.checked) {
+                if (clicked !== checkRP) checkRP.checked = false;
+                if (clicked !== checkSP) checkSP.checked = false;
+                if (clicked !== checkMiss) checkMiss.checked = false;
+            }
+        }
+
+        // Logic: Gender
+        function checkGender() {
+            if (genderSelect.value === 'FEMALE') {
+                checkElder.checked = false;
+                checkMS.checked = false;
+                checkElder.disabled = true;
+                checkMS.disabled = true;
+            } else {
+                checkElder.disabled = false;
+                checkMS.disabled = false;
+            }
+        }
+
+        // Listeners
+        if (checkElder && checkMS) {
+            checkElder.addEventListener('change', () => toggleAppt(checkElder));
+            checkMS.addEventListener('change', () => toggleAppt(checkMS));
+        }
+
+        if (checkRP && checkSP && checkMiss) {
+            checkRP.addEventListener('change', () => togglePioneer(checkRP));
+            checkSP.addEventListener('change', () => togglePioneer(checkSP));
+            checkMiss.addEventListener('change', () => togglePioneer(checkMiss));
+        }
+
+        if (genderSelect) {
+            genderSelect.addEventListener('change', checkGender);
+            // Run on load
+            checkGender();
+        }
+    });
+</script>
+{% endblock %}

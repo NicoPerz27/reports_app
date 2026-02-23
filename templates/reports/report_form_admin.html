@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h3 class="h5 mb-0">Editar Informe Mensual</h3>
+                    <p class="text-muted mb-0">{{ publisher }} - {{ date|date:"F Y" }}</p>
+                </div>
+                <a href="{% url 'reports:dashboard' %}" class="btn btn-outline-secondary btn-sm">Cancelar</a>
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+
+                <div class="mb-3 form-check form-switch p-3 bg-light rounded">
+                    <label class="form-check-label ms-2 fw-bold" for="{{ form.participation.id_for_label }}">
+                        {{ form.participation.label }}
+                    </label>
+                    {{ form.participation }}
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ form.bible_studies.label }}</label>
+                        {{ form.bible_studies }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ form.hours.label }}</label>
+                        {{ form.hours }}
+                        <div class="form-text small">Solo Precursores/Misioneros/P.Aux</div>
+                    </div>
+                </div>
+
+                <div class="mb-3 form-check">
+                    {{ form.auxiliary_pioneer }}
+                    <label class="form-check-label" for="{{ form.auxiliary_pioneer.id_for_label }}">
+                        {{ form.auxiliary_pioneer.label }}
+                    </label>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">{{ form.remarks.label }}</label>
+                    {{ form.remarks }}
+                </div>
+
+                <div class="d-grid mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

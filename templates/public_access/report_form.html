@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card p-4">
+            <div class="text-center mb-4">
+                <h2 class="h4">Informe del Ministerio</h2>
+                <p class="text-muted">{{ month }}</p>
+                <h3 class="h5 text-primary">{{ publisher }}</h3>
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+
+                <div class="mb-4 p-3 bg-light rounded">
+                    <div class="form-check form-switch ps-0">
+                        <label class="form-check-label ms-2 h5" for="{{ form.participation.id_for_label }}">
+                            {{ form.participation.label }}
+                        </label>
+                        {{ form.participation }}
+                        {% if form.participation.help_text %}
+                        <div class="form-text mt-2">{{ form.participation.help_text }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.bible_studies.id_for_label }}" class="form-label h6">{{ form.bible_studies.label
+                        }}</label>
+                    {{ form.bible_studies }}
+                </div>
+
+                <div class="mb-3">
+                    <div class="form-check ps-0">
+                        <label class="form-check-label ms-2 h6" for="{{ form.auxiliary_pioneer.id_for_label }}">
+                            {{ form.auxiliary_pioneer.label }}
+                        </label>
+                        {{ form.auxiliary_pioneer }}
+                    </div>
+                </div>
+
+                <div class="mb-3" id="hours-container">
+                    <label for="{{ form.hours.id_for_label }}" class="form-label h6">{{ form.hours.label }}</label>
+                    {{ form.hours }}
+                    <div class="form-text">Si fue Precursor Auxiliar, ingrese sus horas.</div>
+                </div>
+
+                <div class="mb-4">
+                    <label for="{{ form.remarks.id_for_label }}" class="form-label h6">{{ form.remarks.label }}</label>
+                    {{ form.remarks }}
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg btn-lg-custom">
+                        Enviar Informe
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

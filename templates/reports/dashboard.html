@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col-md-6">
+        <h1 class="h3">
+            {% if congregation %}
+            {{ congregation.name }}
+            {% else %}
+            Tablero de Control
+            {% endif %}
+        </h1>
+        <p class="text-muted mb-0">Informe Mensual: <strong>{{ current_month|date:"F Y" }}</strong></p>
+    </div>
+    <div class="col-md-6 text-md-end mt-3 mt-md-0">
+        <span class="me-3 text-muted border-end pe-3">Hola, {{ user.username }}</span>
+
+        {% if is_cong_admin %}
+        <a href="{% url 'organization:group_create' %}" class="btn btn-success btn-sm me-2">
+            + Crear Grupo
+        </a>
+        <a href="{% url 'organization:publisher_create' %}" class="btn btn-primary btn-sm me-2">
+            + Nuevo Publicador
+        </a>
+        {% endif %}
+
+        {% if user.is_staff %}
+        <a href="/admin/" class="btn btn-outline-secondary btn-sm me-2">Admin Panel</a>
+        {% endif %}
+        <form action="{% url 'logout' %}" method="post" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger btn-sm">Salir</button>
+        </form>
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="row mb-4">
+    <div class="col-md-4 mb-3 mb-md-0">
+        <div class="card bg-primary text-white h-100">
+            <div class="card-body">
+                <h6 class="card-title text-white-50">Total Publicadores</h6>
+                <h2 class="display-6 fw-bold">{{ stats.publishers }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3 mb-md-0">
+        <div class="card bg-success text-white h-100">
+            <div class="card-body">
+                <h6 class="card-title text-white-50">Informes Recibidos</h6>
+                <h2 class="display-6 fw-bold">{{ stats.submitted }}</h2>
+                <div class="progress mt-2" style="height: 5px;">
+                    <div class="progress-bar bg-white" role="progressbar"
+                        style="width: {{ stats.percent }}%; opacity: 0.8"></div>
+                </div>
+                <small>{{ stats.percent }}% Completado</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-light border h-100">
+            <div class="card-body">
+                <h6 class="card-title text-muted">Pendientes</h6>
+                <h2 class="display-6 fw-bold text-danger">{{ stats.pending }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if not groups %}
+<div class="alert alert-info">
+    No tienes grupos asignados para administrar.
+</div>
+{% endif %}
+
+{% for group in groups %}
+<div class="card mb-4">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">{{ group.name }}</h5>
+        <div>
+            {% if is_cong_admin and group.group.invitation_token %}
+            <button class="btn btn-sm btn-outline-info me-2 copy-invite-btn"
+                data-link="{{ request.scheme }}://{{ request.get_host }}{% url 'organization:group_invite' group.group.invitation_token %}">
+                🔗 Copiar Invitación Admin
+            </button>
+            {% endif %}
+
+            <a href="{% url 'reports:bulk_report' group.id %}" class="btn btn-sm btn-primary me-2">
+                📝 Informe Grupal
+            </a>
+
+            <a href="{% url 'reports:scan_report' group.id %}" class="btn btn-sm btn-outline-dark me-2"
+                title="Escanear con IA">
+                📸 Escanear
+            </a>
+
+            <span class="badge bg-secondary">{{ group.publishers_data|length }} Publicadores</span>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Publicador</th>
+                        <th>Estado</th>
+                        <th>Datos</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in group.publishers_data %}
+                    <tr>
+                        <td class="fw-bold">
+                            {{ item.publisher.last_name }}, {{ item.publisher.first_name }}
+                            {% if item.publisher.is_regular_pioneer %}
+                            <span class="badge bg-dark rounded-pill" title="Precursor Regular">PR</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.status == 'APPROVED' %}
+                            <span class="badge bg-success">Confirmado</span>
+                            {% elif item.status == 'SUBMITTED' %}
+                            <span class="badge bg-warning text-dark">Enviado</span>
+                            {% elif item.status == 'PENDING' %}
+                            <span class="badge bg-danger">Pendiente</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Sin Datos</span>
+                            {% endif %}
+                        </td>
+                        <td class="small text-muted">
+                            {% if item.report %}
+                            {% if item.report.participation %}
+                            <span class="text-success">✔ Part.</span>
+                            {% endif %}
+                            {% if item.report.hours %}
+                            | {{ item.report.hours }}h
+                            {% endif %}
+                            {% if item.report.bible_studies %}
+                            | {{ item.report.bible_studies }} est.
+                            {% endif %}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'organization:publisher_edit' item.publisher.id %}"
+                                    class="btn btn-outline-primary" title="Editar Datos Personales">
+                                    ✐
+                                </a>
+                                <!-- Edit Monthly Report logic: Link to current month edit -->
+                                <a href="{% url 'reports:report_edit' item.publisher.id current_month.year current_month.month %}"
+                                    class="btn btn-outline-warning" title="Modificar Informe Mensual">
+                                    📋
+                                </a>
+                                <button class="btn btn-outline-secondary copy-link"
+                                    data-uuid="{{ item.publisher.uuid }}" title="Copiar Link de Auto-reporte">
+                                    🔗
+                                </button>
+                                <a href="{% url 'reports:download_pdf' item.publisher.id %}"
+                                    class="btn btn-outline-dark" title="Descargar Tarjeta S-21">
+                                    📄
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Copy Link Script -->
+<script>
+    function copyToClipboard(text, buttonElement) {
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(function () {
+                showFeedback(buttonElement);
+            }, function (err) {
+                console.error('Error al copiar: ', err);
+                prompt("No pudimos copiar automáticamente. Copia este enlace:", text);
+            });
+        } else {
+            // Fallback
+            let textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            document.body.appendChild(textArea);
+            try {
+                document.execCommand('copy');
+                showFeedback(buttonElement);
+            } catch (err) {
+                console.error('Fallback error', err);
+                prompt("Copia este enlace:", text);
+            }
+            document.body.removeChild(textArea);
+        }
+    }
+
+    function showFeedback(button) {
+        if (!button) return;
+        const originalText = button.innerHTML;
+        button.innerHTML = '¡Copiado! ✅';
+        button.classList.remove('btn-outline-info', 'btn-outline-secondary');
+        button.classList.add('btn-success');
+
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.classList.remove('btn-success');
+            if (button.classList.contains('copy-invite-btn')) {
+                button.classList.add('btn-outline-info');
+            } else {
+                button.classList.add('btn-outline-secondary');
+            }
+        }, 2000);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Delegate event for better performance or just simple loop
+        const attachCopy = (selector) => {
+            document.querySelectorAll(selector).forEach(button => {
+                button.addEventListener('click', function () {
+                    const link = this.getAttribute('data-link') || this.getAttribute('data-uuid');
+                    // For UUID buttons, construct link if needed, or if data-link is present use it.
+                    // The auto-report button has data-uuid, let's build the link.
+                    let finalLink = link;
+                    if (this.hasAttribute('data-uuid')) {
+                        finalLink = window.location.origin + "/report/" + link + "/";
+                    }
+
+                    copyToClipboard(finalLink, this);
+                });
+            });
+        };
+
+        attachCopy('.copy-invite-btn'); // Admin Invite
+        attachCopy('.copy-link');       // Publisher Auto-report
+    });
+</script>
+
+{% endblock %}

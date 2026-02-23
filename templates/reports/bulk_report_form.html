@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3">Informe Grupal: {{ group.name }}</h1>
+            <p class="text-muted mb-0">Mes: <strong>{{ target_date|date:"F Y" }}</strong></p>
+        </div>
+        <div>
+            <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#scanModal">
+                📸 Escanear Informe
+            </button>
+            <a href="{% url 'reports:dashboard' %}" class="btn btn-outline-secondary">Volver</a>
+        </div>
+    </div>
+
+    {% if scan_message %}
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        {{ scan_message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="card shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 25%">Publicador</th>
+                            <th class="text-center" style="width: 10%">Participó</th>
+                            <th class="text-center" style="width: 15%">Horas</th>
+                            <th class="text-center" style="width: 15%">Estudios</th>
+                            <th class="text-center" style="width: 10%">Prec. Aux</th>
+                            <th style="width: 25%">Observaciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                        <tr class="{% if not row.publisher.active %}table-secondary{% endif %}">
+                            <td>
+                                <div class="fw-bold">{{ row.publisher.last_name }}, {{ row.publisher.first_name }}</div>
+                                <div class="small text-muted">
+                                    {% if row.publisher.is_regular_pioneer %}Precursor Regular{% endif %}
+                                    {% if row.publisher.is_special_pioneer %}Prec. Especial{% endif %}
+                                    {% if row.publisher.is_missionary %}Misionero{% endif %}
+                                </div>
+                            </td>
+
+                            <!-- Participation -->
+                            <td class="text-center">
+                                <div class="form-check d-flex justify-content-center">
+                                    <input class="form-check-input border-primary" type="checkbox"
+                                        name="report_{{ row.publisher.id }}_participation"
+                                        id="chk_part_{{ row.publisher.id }}" {{
+                                        row.report.participation|yesno:"checked,," }}>
+                                </div>
+                            </td>
+
+                            <!-- Hours -->
+                            <td>
+                                <input type="number" class="form-control text-center"
+                                    name="report_{{ row.publisher.id }}_hours" placeholder="-"
+                                    value="{{ row.report.hours|default:'' }}" min="0">
+                            </td>
+
+                            <!-- Studies -->
+                            <td>
+                                <input type="number" class="form-control text-center"
+                                    name="report_{{ row.publisher.id }}_studies" placeholder="-"
+                                    value="{{ row.report.bible_studies|default:'' }}" min="0">
+                            </td>
+
+                            <!-- Aux Pioneer -->
+                            <td class="text-center">
+                                <div class="form-check d-flex justify-content-center">
+                                    <input class="form-check-input" type="checkbox"
+                                        name="report_{{ row.publisher.id }}_aux_pioneer" {{
+                                        row.report.auxiliary_pioneer|yesno:"checked,," }}>
+                                </div>
+                            </td>
+
+                            <!-- Remarks -->
+                            <td>
+                                <input type="text" class="form-control form-control-sm"
+                                    name="report_{{ row.publisher.id }}_remarks" placeholder="Opcional"
+                                    value="{{ row.report.remarks|default:'' }}">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer bg-white p-3">
+                <div class="d-flex justify-content-end">
+                    <button type="submit" class="btn btn-success btn-lg px-5">
+                        💾 Guardar Todo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- AI Scan Modal -->
+<div class="modal fade" id="scanModal" tabindex="-1" aria-labelledby="scanModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable"> <!-- Wide modal for table -->
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="scanModalLabel">Escanear Informe con IA</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Step 1: Upload -->
+                <div id="scan-step-upload" class="text-center py-5">
+                    <div class="mb-3">
+                        <label for="scanImageInput" class="form-label h5">Subir foto del informe</label>
+                        <input class="form-control w-50 mx-auto" type="file" id="scanImageInput" accept="image/*">
+                    </div>
+                    <button class="btn btn-primary btn-lg mt-3" onclick="startScan()" id="btnScanAction">
+                        <span class="spinner-border spinner-border-sm d-none" id="scanSpinner" role="status"
+                            aria-hidden="true"></span>
+                        Analizar Imagen
+                    </button>
+                    <div class="alert alert-danger mt-3 d-none" id="scanErrorMsg"></div>
+                </div>
+
+                <!-- Step 2: Verification Table -->
+                <div id="scan-step-verify" class="d-none">
+                    <p class="text-muted">Verifique los datos extraídos. Modifique si es necesario y luego pulse
+                        "Transferir".</p>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Nombre (IA)</th>
+                                    <th>Horas</th>
+                                    <th>Estudios</th>
+                                    <th>Participó</th>
+                                    <th>Prec. Aux</th>
+                                    <th>Observaciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scanResultsBody">
+                                <!-- JS will populate this -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-success d-none" id="btnMergeData" onclick="mergeData()">
+                    Transferir a Informe
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const groupScanUrl = "{% url 'reports:scan_report' group.id %}";
+    let scannedDataGlobal = [];
+
+    async function startScan() {
+        const input = document.getElementById('scanImageInput');
+        const file = input.files[0];
+
+        if (!file) {
+            alert("Por favor seleccione una imagen.");
+            return;
+        }
+
+        // UI Reset
+        document.getElementById('scanSpinner').classList.remove('d-none');
+        document.getElementById('btnScanAction').disabled = true;
+        document.getElementById('scanErrorMsg').classList.add('d-none');
+
+        const formData = new FormData();
+        formData.append('image', file);
+
+        try {
+            const response = await fetch(groupScanUrl, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                showVerificationTable(result.data);
+            } else {
+                throw new Error(result.message || "Error desconocido");
+            }
+
+        } catch (error) {
+            console.error(error);
+            const errDiv = document.getElementById('scanErrorMsg');
+            errDiv.textContent = "Error: " + error.message;
+            errDiv.classList.remove('d-none');
+        } finally {
+            document.getElementById('scanSpinner').classList.add('d-none');
+            document.getElementById('btnScanAction').disabled = false;
+        }
+    }
+
+    function showVerificationTable(data) {
+        scannedDataGlobal = data; // Store for merging
+        const tbody = document.getElementById('scanResultsBody');
+        tbody.innerHTML = '';
+
+        data.forEach((item, index) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>
+                    <span class="fw-bold">${item.name || 'Desconocido'}</span>
+                    <br><small class="text-muted">ID: ${item.id}</small>
+                </td>
+                <td><input type="number" class="form-control form-control-sm" value="${item.hours}" id="scan_hours_${index}"></td>
+                <td><input type="number" class="form-control form-control-sm" value="${item.studies}" id="scan_studies_${index}"></td>
+                <td class="text-center">
+                    <input type="checkbox" class="form-check-input" ${item.participation ? 'checked' : ''} id="scan_part_${index}">
+                </td>
+                <td class="text-center">
+                    <input type="checkbox" class="form-check-input" ${item.aux_pioneer ? 'checked' : ''} id="scan_aux_${index}">
+                </td>
+                <td><input type="text" class="form-control form-control-sm" value="${item.remarks}" id="scan_remarks_${index}"></td>
+            `;
+            tbody.appendChild(row);
+        });
+
+        document.getElementById('scan-step-upload').classList.add('d-none');
+        document.getElementById('scan-step-verify').classList.remove('d-none');
+        document.getElementById('btnMergeData').classList.remove('d-none');
+    }
+
+    function mergeData() {
+        // Iterate through the verified data in the modal
+        scannedDataGlobal.forEach((originalItem, index) => {
+            // Get verified values from modal inputs
+            const vHours = document.getElementById(`scan_hours_${index}`).value;
+            const vStudies = document.getElementById(`scan_studies_${index}`).value;
+            const vPart = document.getElementById(`scan_part_${index}`).checked;
+            const vAux = document.getElementById(`scan_aux_${index}`).checked;
+            const vRemarks = document.getElementById(`scan_remarks_${index}`).value;
+
+            // Find target row in MAIN form by ID
+            // Input IDs in main form are like: name="report_{id}_hours"
+            // We can query by name attribute
+            const pubId = originalItem.id;
+
+            const mainHours = document.querySelector(`[name="report_${pubId}_hours"]`);
+            if (mainHours) {
+                // Update Main Form
+                mainHours.value = vHours;
+                document.querySelector(`[name="report_${pubId}_studies"]`).value = vStudies;
+                document.querySelector(`[name="report_${pubId}_participation"]`).checked = vPart;
+                document.querySelector(`[name="report_${pubId}_aux_pioneer"]`).checked = vAux;
+                document.querySelector(`[name="report_${pubId}_remarks"]`).value = vRemarks;
+
+                // Highlight the row to show it was updated
+                mainHours.closest('tr').classList.add('table-warning');
+            } else {
+                console.warn(`Publisher ID ${pubId} not found in main form.`);
+            }
+        });
+
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('scanModal'));
+        modal.hide();
+
+        // Reset modal state slightly delayed
+        setTimeout(() => {
+            document.getElementById('scan-step-upload').classList.remove('d-none');
+            document.getElementById('scan-step-verify').classList.add('d-none');
+            document.getElementById('btnMergeData').classList.add('d-none');
+            document.getElementById('scanImageInput').value = '';
+        }, 500);
+
+        alert("Datos transferidos exitosamente. Por favor revise y haga clic en 'Guardar Todo'.");
+    }
+</script>
+<style>
+    /* Styling to make inputs blend in but distinct enough */
+    .form-control {
+        border-color: #dee2e6;
+    }
+
+    .form-control:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+    }
+
+    /* Larger checkboxes */
+    .form-check-input {
+        width: 1.4em;
+        height: 1.4em;
+        cursor: pointer;
+    }
+</style>
+
+<script>
+    // Optional: Auto-check participation if hours entered
+    document.addEventListener('DOMContentLoaded', function () {
+        const inputs = document.querySelectorAll('input[type="number"]');
+        inputs.forEach(input => {
+            input.addEventListener('input', function () {
+                if (this.value > 0) {
+                    // Find the row
+                    const row = this.closest('tr');
+                    // Find participation checkbox in row (it's the first checkbox usually)
+                    const partChk = row.querySelector('input[name*="_participation"]');
+                    if (partChk) partChk.checked = true;
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

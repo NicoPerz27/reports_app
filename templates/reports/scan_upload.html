@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow border-0 rounded-4 overflow-hidden">
+                <div class="card-header bg-gradient bg-primary text-white p-4">
+                    <h2 class="h4 mb-1 fw-bold">Escanear Reporte Grupal</h2>
+                    <p class="mb-0 opacity-75">Digitalización asistida por IA para {{ group.name }}</p>
+                </div>
+                <div class="card-body p-5 text-center">
+
+                    <form method="post" enctype="multipart/form-data" id="scanForm">
+                        {% csrf_token %}
+
+                        <div class="mb-5">
+                            <label for="reportImage"
+                                class="form-label d-block mb-3 fw-bold text-muted text-uppercase small tracking-wide">
+                                Subir Foto del Reporte (Cuaderno o S-21)
+                            </label>
+
+                            <div class="upload-zone p-5 border-2 border-dashed rounded-4 bg-light position-relative"
+                                id="dropZone">
+                                <input type="file" name="image" id="reportImage"
+                                    class="position-absolute top-0 start-0 w-100 h-100 opacity-0" accept="image/*"
+                                    required style="cursor: pointer;">
+
+                                <div class="d-none" id="previewContainer">
+                                    <img id="imagePreview" src="#" alt="Preview"
+                                        class="img-fluid rounded-3 shadow-sm mb-3" style="max-height: 300px;">
+                                    <p class="text-success fw-bold mb-0">✅ Imagen lista para procesar</p>
+                                    <small class="text-muted click-text">Clic para cambiar</small>
+                                </div>
+
+                                <div id="placeholderContainer" class="pointer-events-none">
+                                    <div class="mb-3">
+                                        <i class="bi bi-cloud-arrow-up display-1 text-primary opacity-25"></i>
+                                    </div>
+                                    <h5 class="fw-bold text-dark">Arrastra tu imagen aquí</h5>
+                                    <p class="text-muted small mb-0">o haz clic para seleccionar archivo</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit"
+                                class="btn btn-primary btn-lg rounded-pill py-3 fw-bold shadow-sm position-relative overflow-hidden"
+                                id="processBtn">
+                                <span class="position-relative z-1">
+                                    <i class="bi bi-magic me-2"></i> Procesar con IA
+                                </span>
+                                <div class="progress position-absolute top-0 start-0 w-100 h-100 d-none"
+                                    id="progressBar">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+                                        role="progressbar" style="width: 100%"></div>
+                                </div>
+                            </button>
+                            <a href="{% url 'reports:dashboard' %}"
+                                class="btn btn-link text-muted mt-2 text-decoration-none">Cancelar y Volver</a>
+                        </div>
+                    </form>
+
+                    <div class="mt-4 text-start bg-blue-50 p-3 rounded-3 border border-blue-100">
+                        <div class="d-flex">
+                            <div class="flex-shrink-0">
+                                <i class="bi bi-info-circle-fill text-primary fs-5"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="fw-bold text-dark mb-1">¿Cómo funciona?</h6>
+                                <p class="text-muted small mb-0">
+                                    El sistema analizará la escritura en la foto (incluso a mano) y vinculará los datos
+                                    con los publicadores del grupo:
+                                </p>
+                                <ul class="text-muted small mb-0 mt-1 ps-3">
+                                    <li>Detecta horas, revisitas, estudios y checks de participación.</li>
+                                    <li>Identifica observaciones manuscritas.</li>
+                                    <li>Podrás verificar los datos antes de guardarlos.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .upload-zone {
+        transition: all 0.3s ease;
+        border-color: #dee2e6;
+    }
+
+    .upload-zone:hover,
+    .upload-zone.dragover {
+        border-color: #0d6efd !important;
+        background-color: #f8f9fa;
+    }
+
+    .tracking-wide {
+        letter-spacing: 0.1em;
+    }
+
+    .bg-gradient {
+        background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+    }
+</style>
+
+<script>
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('reportImage');
+    const previewContainer = document.getElementById('previewContainer');
+    const placeholderContainer = document.getElementById('placeholderContainer');
+    const imagePreview = document.getElementById('imagePreview');
+    const form = document.getElementById('scanForm');
+    const processBtn = document.getElementById('processBtn');
+    const progressBar = document.getElementById('progressBar');
+
+    // Drag & Drop visual feedback
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            updatePreview();
+        }
+    });
+
+    fileInput.addEventListener('change', updatePreview);
+
+    function updatePreview() {
+        const file = fileInput.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                imagePreview.src = e.target.result;
+                placeholderContainer.classList.add('d-none');
+                previewContainer.classList.remove('d-none');
+            }
+            reader.readAsDataURL(file);
+        }
+    }
+
+    form.addEventListener('submit', function () {
+        if (fileInput.files.length > 0) {
+            processBtn.classList.add('disabled');
+            processBtn.querySelector('span').innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Analizando imagen...';
+            // Show verifying processing state
+        }
+    });
+</script>
+{% endblock %}
